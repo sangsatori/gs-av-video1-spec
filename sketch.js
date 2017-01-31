@@ -28,7 +28,8 @@ const config = {
 };
 
 
-let video, palette;
+let video, palette, snapshot;
+let lastFrame = [];
 
 function setup() {
   createCanvas(640, 640);
@@ -56,13 +57,18 @@ function draw() {
   const binningArea = config.box.size.x * config.box.size.y;
 
   // draw from average colours
-  binArea(video, config.box.size).forEach(area => {
-    fill(...from24to8bit(
-      area.r,
-      area.g,
-      area.b
-    ));
-    rect(area.x, area.y, config.box.size.x, config.box.size.y);
+  binArea(video, config.box.size).forEach((area, i) => {
+    snapshot = JSON.stringify(area);
+    if (lastFrame[i] !== snapshot) {
+      fill(...from24to8bit(
+        area.r,
+        area.g,
+        area.b
+      ));
+      rect(area.x, area.y, config.box.size.x, config.box.size.y);
+      lastFrame[i] = snapshot;
+    }
+    // skip box if matching
   });
 
   pop();
@@ -76,7 +82,7 @@ function draw() {
 const toBitDepth = (bits, value) => {
   const depth = pow(2, bits);
   const step = pow(2, 8) / depth;
-  return Math.floor(value * 7 / 255) * step;
+  return floor(value * 7 / 255) * step;
 };
 
 // reduce 24-bit RGB to 8-bit RGB
