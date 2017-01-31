@@ -90,15 +90,15 @@ const from24to8bit = (r, g, b) => [
 const binArea = (gfx, size) => {
   const areaSize = size.x * size.y;
 
-  let results = [];
-  let index, total, coords;
+  var results = [];
+  var index, total, coords;
 
   // traverse graphics
-  for (let x = 0; x < gfx.width; x += size.x) {
-    for (let y = 0; y < gfx.height; y += size.y) {
+  for (var x = 0; x < gfx.width; x += size.x) {
+    for (var y = 0; y < gfx.height; y += size.y) {
       total = { r: 0, g: 0, b: 0 };
-      for (let binX = x; binX < x + size.x; binX++) {
-        for (let binY = y; binY < y + size.y; binY++) {
+      for (var binX = x; binX < x + size.x; binX++) {
+        for (var binY = y; binY < y + size.y; binY++) {
           index = (binX + binY * gfx.width) * 4;
           total.r += gfx.pixels[index + 0];
           total.g += gfx.pixels[index + 1];
