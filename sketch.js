@@ -23,12 +23,11 @@ const config = {
      "#FFFF55", // yellow
      "#AAAAAA", // light gray
      "#FFFFFF" // white (high intensity)
-    ]
+   ]
   ]
 };
 
-
-let video, palette, snapshot;
+let video, palette, snapshot, distances;
 let lastFrame = [];
 
 function setup() {
@@ -43,7 +42,10 @@ function setup() {
   video.volume(0); // mute camera audio
 
   // turn hex values into p5.color objects
-  palette = config.palettes[0].map(hex => color(hex));
+  palette = config.palettes[0].map(hex => {
+    const c = color(hex);
+    return [red(c), green(c), blue(c)];
+  });
 }
 
 function draw() {
@@ -60,15 +62,10 @@ function draw() {
   binArea(video, config.box.size).forEach((area, i) => {
     snapshot = JSON.stringify(area);
     if (lastFrame[i] !== snapshot) {
-      fill(...from24to8bit(
-        area.r,
-        area.g,
-        area.b
-      ));
+      fill(...toPalette(area.r, area.g, area.b));
       rect(area.x, area.y, config.box.size.x, config.box.size.y);
       lastFrame[i] = snapshot;
-    }
-    // skip box if matching
+    } // skip box if matching
   });
 
   pop();
@@ -85,12 +82,37 @@ const toBitDepth = (bits, value) => {
   return floor(value * 7 / 255) * step;
 };
 
+// calculate euclidean distance for 2 RGB colors
+const rgbDistance = (x, y) => {
+  return (
+    Math.pow((y[0] - x[0]), 2) +
+    Math.pow((y[1] - x[1]), 2) +
+    Math.pow((y[2] - x[2]), 2)
+  );
+};
+
 // reduce 24-bit RGB to 8-bit RGB
 const from24to8bit = (r, g, b) => [
   toBitDepth(3, r),
   toBitDepth(3, g),
   toBitDepth(3, b)
 ];
+
+// find the closest palette color
+const toPalette = (r, g, b) => {
+  let result, index;
+  distances = palette
+  .map(c => abs(
+    rgbDistance(c, [r, g, b])
+  ));
+  index = distances.indexOf(Math.min(...distances));
+  if (index !== -1) {
+    result = palette[index];
+  } else {
+    result = [0, 0, 0];
+  }
+  return result;
+};
 
 // perform average binning on a graphics object
 const binArea = (gfx, size) => {
@@ -119,6 +141,5 @@ const binArea = (gfx, size) => {
       });
     }
   }
-
   return results;
 };
