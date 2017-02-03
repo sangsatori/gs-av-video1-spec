@@ -1,48 +1,81 @@
-const config = {
-  box: {
-    size: {
-      x: 3,
-      y: 9
-    }
-  },
-  palettes: [
-    [
-     "#000000", // black
-     "#555555", // gray
-     "#0000AA", // blue
-     "#5555FF", // light blue
-     "#00AA00", // green
-     "#55FF55", // light green
-     "#00AAAA", // cyan
-     "#55FFFF", // light cyan
-     "#AA0000", // red
-     "#FF5555", // light red
-     "#AA00AA", // magenta
-     "#FF55FF", // light magenta
-     "#AA5500", // brown
-     "#FFFF55", // yellow
-     "#AAAAAA", // light gray
-     "#FFFFFF" // white (high intensity)
-   ]
-  ]
-};
-
+let config;
 let video, palette, snapshot, distances;
-let lastFrame = [];
+let lastFrame = []; // memoize-like store
 
 function setup() {
-  createCanvas(640, 640);
-  background(25);
+  // moved to setup to ensure functions are accessible
+  config = {
+    box: {
+      size: {
+        x: 4,
+        y: 12
+      }
+    },
+    colorProcessingModes: {
+      "8bit": from24to8bit,
+      "4bit": toPalette,
+      "none": (r, g, b) => [r, g, b] // no transform
+    },
+    binningModes: {
+      "average": binArea,
+      "none": firstPixelArea,
+    },
+    activeBinning: "average",
+    activePalette: "clrs",
+    activeProcessingMode: "4bit",
+    palettes: {
+      // the palette provided
+      "default": [
+        "#000000", // black
+        "#555555", // gray
+        "#0000AA", // blue
+        "#5555FF", // light blue
+        "#00AA00", // green
+        "#55FF55", // light green
+        "#00AAAA", // cyan
+        "#55FFFF", // light cyan
+        "#AA0000", // red
+        "#FF5555", // light red
+        "#AA00AA", // magenta
+        "#FF55FF", // light magenta
+        "#AA5500", // brown
+        "#FFFF55", // yellow
+        "#AAAAAA", // light gray
+        "#FFFFFF" // white (high intensity)
+      ],
+      // brighter shades from http://clrs.cc/
+      "clrs": [
+        "#001F3F", // navy
+        "#0074D9", // blue
+        "#7FDBFF", // aqua
+        "#39CCCC", // teal
+        "#3D9970", // olive
+        "#2ECC40", // green
+        "#01FF70", // lime
+        "#FFDC00", // yellow
+        "#FF851B", // orange
+        "#FF4136", // red
+        "#F012BE", // fuchsia
+        "#B10DC9", // purple
+        "#85144B", // maroon
+        "#FFFFFF", // white
+        "#DDDDDD", // silver
+        "#AAAAAA", // gray
+        "#111111" // black
+      ]
+    }
+  };
 
+  createCanvas(640, 640); // assuming camera resolution
   noStroke();
   pixelDensity(1);
 
-  video = createCapture();
+  video = createCapture(VIDEO); // don't capture audio
   video.hide();
   video.volume(0); // mute camera audio
 
   // turn hex values into p5.color objects
-  palette = config.palettes[0].map(hex => {
+  palette = config.palettes[config.activePalette].map(hex => {
     const c = color(hex);
     return [red(c), green(c), blue(c)];
   });
@@ -56,16 +89,18 @@ function draw() {
 
   // process pixel values
   video.loadPixels();
-  const binningArea = config.box.size.x * config.box.size.y;
 
+  const binningArea = config.box.size.x * config.box.size.y;
+  const binFn = config.binningModes[config.activeBinning];
+  const processFn = config.colorProcessingModes[config.activeProcessingMode];
   // draw from average colours
-  binArea(video, config.box.size).forEach((area, i) => {
+  binFn(video, config.box.size).forEach((area, i) => {
     snapshot = JSON.stringify(area);
     if (lastFrame[i] !== snapshot) {
-      fill(...toPalette(area.r, area.g, area.b));
+      fill(...processFn(area.r, area.g, area.b));
       rect(area.x, area.y, config.box.size.x, config.box.size.y);
       lastFrame[i] = snapshot;
-    } // skip box if matching
+    } // don't redraw if matching
   });
 
   pop();
@@ -143,3 +178,22 @@ const binArea = (gfx, size) => {
   }
   return results;
 };
+
+const firstPixelArea = (gfx, size) => {
+  const areaSize = size.x * size.y;
+
+  var results = [];
+  var index;
+
+  for (var x = 0; x < gfx.width; x += size.x) {
+    for (var y = 0; y < gfx.height; y += size.y) {
+      index = (x + y * gfx.width) * 4;
+      result.push({
+        r: gfx.pixels[index + 0],
+        g: gfx.pixels[index + 1],
+        b: gfx.pixels[index + 2]
+      });
+    }
+  }
+  return results;
+}
